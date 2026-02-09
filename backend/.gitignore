@@ -1,0 +1,40 @@
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# Storage directories
+storage/uploads/*
+storage/products/*
+storage/results/*
+storage/artifacts/*
+
+# Keep directory structure
+!storage/uploads/.gitkeep
+!storage/products/.gitkeep
+!storage/results/.gitkeep
+!storage/artifacts/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution
+dist/
+build/
+*.egg-info/
