@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/backend/lib/prisma';
 
 // GET /api/try-on/:jobId - статус примірювання
 export async function GET(
     request: NextRequest,
-    { params }: { params: { jobId: string } }
+    { params }: { params: Promise<{ jobId: string }> }
 ) {
     try {
+        const { jobId } = await params;
         const job = await prisma.tryOnJob.findUnique({
-            where: { id: params.jobId },
+            where: { id: jobId },
             include: {
                 user: {
                     select: {
@@ -16,6 +17,7 @@ export async function GET(
                         name: true,
                     },
                 },
+                userImage: true,
             },
         });
 
@@ -32,8 +34,8 @@ export async function GET(
             id: job.id,
             status: job.status,
             productId: job.productId,
-            userPhotoUrl: job.userPhotoUrl,
-            resultPhotoUrl: job.resultPhotoUrl,
+            userPhotoUrl: job.userImage?.filepath ?? null,
+            resultPhotoUrl: job.resultPath,
             errorMessage: job.errorMessage,
             createdAt: job.createdAt,
             updatedAt: job.updatedAt,

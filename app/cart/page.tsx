@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/lib/cartContext';
+import { useCart } from '@/frontend/lib/cartContext';
 import Link from 'next/link';
 import './page.css';
 
@@ -61,14 +61,14 @@ export default function CartPage() {
                                 <div className="cart-item-actions">
                                     <div className="quantity-controls">
                                         <button
-                                            onClick={() => updateQuantity(item.product.id, Math.max(1, item.quantity - 1))}
+                                            onClick={() => updateQuantity(item.product.id, item.selectedSize, item.selectedColor, Math.max(1, item.quantity - 1))}
                                             className="quantity-btn"
                                         >
                                             −
                                         </button>
                                         <span className="quantity">{item.quantity}</span>
                                         <button
-                                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                                            onClick={() => updateQuantity(item.product.id, item.selectedSize, item.selectedColor, item.quantity + 1)}
                                             className="quantity-btn"
                                         >
                                             +
@@ -80,7 +80,7 @@ export default function CartPage() {
                                     </div>
 
                                     <button
-                                        onClick={() => removeFromCart(item.product.id)}
+                                        onClick={() => removeFromCart(item.product.id, item.selectedSize, item.selectedColor)}
                                         className="remove-btn"
                                     >
                                         🗑️

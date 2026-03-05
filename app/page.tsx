@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import ProductCard from '@/components/ProductCard';
-import { mockProducts } from '@/lib/mockData';
+import ProductCard from '@/frontend/components/ProductCard';
+import { mockProducts } from '@/frontend/lib/mockData';
 import './page.css';
 
 export default function Home() {

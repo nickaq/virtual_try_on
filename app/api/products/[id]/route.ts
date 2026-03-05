@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/backend/lib/prisma';
 
 // GET /api/products/:id - деtalі товару
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const product = await prisma.product.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!product) {

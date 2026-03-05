@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/backend/lib/prisma';
 
 // GET /api/products - список товарів з фільтрацією та пагінацією
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '20');
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '20', 10);
         const category = searchParams.get('category');
         const search = searchParams.get('search');
         const minPrice = searchParams.get('minPrice');
@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
         const skip = (page - 1) * limit;
 
         // Побудова where clause
-        const where: any = {};
+        const where: {
+            category?: string;
+            season?: string;
+            OR?: Array<{ name?: { contains: string; mode: string }; description?: { contains: string; mode: string } }>;
+            price?: { gte?: number; lte?: number };
+        } = {};
 
         if (category) {
             where.category = category;

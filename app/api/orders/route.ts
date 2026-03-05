@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/backend/lib/prisma';
 import { z } from 'zod';
 
 const orderSchema = z.object({
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
         if (error instanceof z.ZodError) {
             return NextResponse.json(
-                { error: 'Некоректні дані', details: error.errors },
+                { error: 'Некоректні дані', details: error.issues },
                 { status: 400 }
             );
         }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/orders - список замовлень користувача
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         // TODO: Додати перевірку auth після реалізації
         // const session = await auth();

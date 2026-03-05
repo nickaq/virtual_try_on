@@ -41,3 +41,12 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+/backend/lib/generated/prisma
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Python AI service
+ai-service/venv/
+ai-service/.venv/
+ai-service/__pycache__/
+ai-service/**/__pycache__/

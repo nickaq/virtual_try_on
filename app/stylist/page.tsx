@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { mockProducts } from '@/lib/mockData';
-import ProductCard from '@/components/ProductCard';
+import { mockProducts } from '@/frontend/lib/mockData';
+import ProductCard from '@/frontend/components/ProductCard';
 import './page.css';
 
 interface ChatMessage {
@@ -150,7 +150,7 @@ export default function StylistPage() {
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && sendMessage(input)}
+                                onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
                                 placeholder="Опишіть, що ви шукаєте..."
                             />
                             <button onClick={() => sendMessage(input)} className="btn btn-primary">

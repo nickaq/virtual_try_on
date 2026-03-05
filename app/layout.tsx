@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
-import { CartProvider } from "@/lib/cartContext";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { CartProvider } from "@/frontend/lib/cartContext";
+import Header from "@/frontend/components/Header";
+import Footer from "@/frontend/components/Footer";
 import "./globals.css";
 
 const inter = Inter({

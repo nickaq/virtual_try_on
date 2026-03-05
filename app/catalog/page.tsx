@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import ProductCard from '@/components/ProductCard';
-import { mockProducts, filterProducts } from '@/lib/mockData';
+import ProductCard from '@/frontend/components/ProductCard';
+import { filterProducts } from '@/frontend/lib/mockData';
 import './page.css';
 
 export default function CatalogPage() {

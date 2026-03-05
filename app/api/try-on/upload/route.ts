@@ -1,164 +1,193 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { uploadFile } from '@/lib/fileStorage';
-import { rateLimit } from '@/lib/rateLimit';
-import { z } from 'zod';
+import path from 'path';
+import { prisma } from '@/backend/lib/prisma';
+import { uploadFile } from '@/backend/lib/fileStorage';
+import { rateLimit } from '@/backend/lib/rateLimit';
 
-// TODO: Імплементувати реальну інтеграцію з Nano Banana API
-async function callNanoBananaAPI(params: {
-    userPhotoUrl: string;
-    productId: string;
-}): Promise<{ resultUrl: string; apiJobId: string }> {
-    // Заглушка - в production використовувати реальний API
-    console.log('Calling Nano Banana API with:', params);
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
-    // Симуляція затримки API
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Повернути тестовий результат
-    return {
-        resultUrl: params.userPhotoUrl, // Тимчасово повертаємо те саме фото
-        apiJobId: `job_${Date.now()}`,
-    };
-}
-
-// POST /api/try-on/upload - завантаження фото та створення job
+// POST /api/try-on/upload - upload photo and create job
 export async function POST(request: NextRequest) {
     try {
-        // Rate limiting - 5 запитів на годину на IP  
+        // Rate limiting - 5 requests per hour per IP
         const ip = request.headers.get('x-forwarded-for') || 'unknown';
         const rateLimitResult = await rateLimit(ip, 5, 3600);
 
         if (rateLimitResult.limited) {
             return NextResponse.json(
                 {
-                    error: 'Перевищено ліміт запитів. Спробуйте пізніше.',
+                    error: 'Rate limit exceeded. Please try again later.',
                     resetAt: rateLimitResult.resetAt,
                 },
                 { status: 429 }
             );
         }
 
-        // Парсинг form data
+        // Parse form data
         const formData = await request.formData();
         const productId = formData.get('productId') as string;
         const photo = formData.get('photo') as File;
 
-        // Валідація
+        // Validation
         if (!productId || !photo) {
             return NextResponse.json(
-                { error: 'Відсутні обов\'язкові параметри' },
+                { error: 'Missing required parameters' },
                 { status: 400 }
             );
         }
 
-        // Перевірка розміру файлу (макс 10MB)
+        // Check file size (max 10MB)
         if (photo.size > 10 * 1024 * 1024) {
             return NextResponse.json(
-                { error: 'Файл занадто великий (макс 10MB)' },
+                { error: 'File too large (max 10MB)' },
                 { status: 400 }
             );
         }
 
-        // Перевірка типу файлу
+        // Check file type
         if (!photo.type.startsWith('image/')) {
             return NextResponse.json(
-                { error: 'Дозволені лише зображення' },
+                { error: 'Only images are allowed' },
                 { status: 400 }
             );
         }
 
-        // Завантажити фото користувача
-        const userPhotoUrl = await uploadFile(photo, 'try-on/user-photos');
+        // Upload user photo
+        const userPhotoPath = await uploadFile(photo, 'try-on/user-photos');
 
-        // Створити job в БД
-        const job = await prisma.tryOnJob.create({
+        // Create Upload record for user photo
+        const userUpload = await prisma.upload.create({
             data: {
-                userId: 'guest', // TODO: Додати реальний userId після auth
-                productId,
-                userPhotoUrl,
-                status: 'PENDING',
-                deleteAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 днів
+                filename: photo.name,
+                filepath: userPhotoPath,
+                mimeType: photo.type,
+                size: photo.size,
             },
         });
 
-        // Запустити обробку асинхронно
-        processTryOnJob(job.id).catch(err => {
+        // Create Upload record for product photo (placeholder, ideally should reference existing product image)
+        // In a real scenario, we should look up the product and get its image path.
+        // For now, we'll assume the product ID corresponds to a filename or path we can resolve, 
+        // or we simply pass the product ID to the AI service if it can handle it.
+        // However, the AI service expects `product_image_path`.
+
+        // Let's check how `app/api/tryon/submit/route.ts` handled it. 
+        // It expected `productImageId` to be passed in body, but here we only have `productId`.
+        // We probably need to fetch the product to get its image.
+        // Since we don't have a direct "Product" model linked here easily visible in snippets,
+        // let's try to find an existing Upload for this product or create a placeholder pointing to the static image.
+
+        // Assumption based on API docs: standard products are likely local or in storage.
+        // Let's create a placeholder Upload record for the product image based on productId.
+        const productUpload = await prisma.upload.create({
+            data: {
+                filename: 'product.jpg',
+                filepath: `/products/${productId}.jpg`, // Simplified path
+                mimeType: 'image/jpeg',
+                size: 0,
+            },
+        });
+
+        // Create job in DB
+        const job = await prisma.tryOnJob.create({
+            data: {
+                productId,
+                userImageId: userUpload.id,
+                productImageId: productUpload.id,
+                status: 'QUEUED',
+            },
+        });
+
+        // Convert to absolute paths for Python service
+        // relative path starts with '/', so slice(1) to make it relative to public folder
+        const absoluteUserPath = path.join(process.cwd(), 'public', userUpload.filepath.startsWith('/') ? userUpload.filepath.slice(1) : userUpload.filepath);
+
+        // Product path logic: assuming it's in public folder as well
+        const absoluteProductPath = path.join(process.cwd(), 'public', productUpload.filepath.startsWith('/') ? productUpload.filepath.slice(1) : productUpload.filepath);
+
+        // Call AI service asynchronously
+        processJobAsync(job.id, absoluteUserPath, absoluteProductPath).catch(err => {
             console.error('Try-on processing error:', err);
         });
 
         return NextResponse.json({
             jobId: job.id,
             status: job.status,
-            message: 'Фото завантажено. Обробка почалася.',
+            message: 'Photo uploaded. Processing started.',
         }, { status: 201 });
 
     } catch (error) {
         console.error('Try-on upload error:', error);
         return NextResponse.json(
-            { error: 'Помилка завантаження фото' },
+            { error: 'Upload failed' },
             { status: 500 }
         );
     }
 }
 
-// Асинхронна обробка try-on job
-async function processTryOnJob(jobId: string) {
+// Async function to call AI service
+async function processJobAsync(
+    jobId: string,
+    userImagePath: string,
+    productImagePath: string
+) {
     try {
-        // Оновити статус
+        // Update status to PROCESSING
         await prisma.tryOnJob.update({
             where: { id: jobId },
-            data: { status: 'PROCESSING' },
+            data: {
+                status: 'PROCESSING',
+                startedAt: new Date(),
+            },
         });
 
-        const job = await prisma.tryOnJob.findUnique({
-            where: { id: jobId },
+        // Call AI service
+        const response = await fetch(`${AI_SERVICE_URL}/ai/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                job_id: jobId,
+                user_image_path: userImagePath,
+                product_image_path: productImagePath,
+                garment_type: 'upper_body', // Default for now, could be inferred from product
+                mode: 'final',
+                realism_level: 3,
+                preserve_face: true,
+                preserve_background: true,
+            }),
         });
 
-        if (!job) return;
-
-        // Виклик Nano Banana API з retry логікою
-        let lastError: any;
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const result = await callNanoBananaAPI({
-                    userPhotoUrl: job.userPhotoUrl,
-                    productId: job.productId,
-                });
-
-                // Оновити результат
-                await prisma.tryOnJob.update({
-                    where: { id: jobId },
-                    data: {
-                        status: 'COMPLETED',
-                        resultPhotoUrl: result.resultUrl,
-                        apiJobId: result.apiJobId,
-                    },
-                });
-
-                return; // Успіх
-
-            } catch (error) {
-                lastError = error;
-                console.error(`Try-on attempt ${attempt + 1} failed:`, error);
-
-                // Затримка перед наступною спробою
-                if (attempt < 2) {
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-                }
-            }
+        if (!response.ok) {
+            throw new Error(`AI Service returned ${response.status}`);
         }
 
-        // Всі спроби провалились
+        const result = await response.json();
+
+        // Update job with result
+        await prisma.tryOnJob.update({
+            where: { id: jobId },
+            data: {
+                status: result.status === 'DONE' ? 'DONE' : 'FAILED',
+                resultPath: result.result_path,
+                qualityScore: result.quality_score,
+                errorCode: result.error_code,
+                errorMessage: result.error_message,
+                completedAt: new Date(),
+            },
+        });
+    } catch (error) {
+        console.error('AI processing error:', error);
+
+        // Update job as failed
         await prisma.tryOnJob.update({
             where: { id: jobId },
             data: {
                 status: 'FAILED',
-                errorMessage: lastError?.message || 'Не вдалося обробити зображення',
+                errorCode: 'AI_SERVICE_ERROR',
+                errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                completedAt: new Date(),
             },
         });
-
-    } catch (error) {
-        console.error('Process try-on job error:', error);
     }
 }
+

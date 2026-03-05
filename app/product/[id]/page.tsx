@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCart } from '@/lib/cartContext';
-import { getProductById, mockProducts } from '@/lib/mockData';
-import ProductCard from '@/components/ProductCard';
+import { useCart } from '@/frontend/lib/cartContext';
+import { getProductById, mockProducts } from '@/frontend/lib/mockData';
+import ProductCard from '@/frontend/components/ProductCard';
 import './page.css';
 
 export default function ProductPage() {
@@ -17,6 +17,9 @@ export default function ProductPage() {
     const [selectedColor, setSelectedColor] = useState('');
     const [showTryOn, setShowTryOn] = useState(false);
     const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+    const [tryOnStatus, setTryOnStatus] = useState<'idle' | 'uploading' | 'processing' | 'done' | 'error'>('idle');
+    const [tryOnResultUrl, setTryOnResultUrl] = useState<string | null>(null);
+    const [tryOnError, setTryOnError] = useState<string | null>(null);
 
     if (!product) {
         return (
@@ -36,15 +39,81 @@ export default function ProductPage() {
         alert('Товар додано до кошика!');
     };
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setUploadedPhoto(e.target?.result as string);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            setUploadedPhoto(ev.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Submit to API
+        setTryOnStatus('uploading');
+        setTryOnError(null);
+        setTryOnResultUrl(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('photo', file);
+            formData.append('productId', product.id);
+
+            const response = await fetch('/api/try-on/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Upload failed (${response.status})`);
+            }
+
+            const data = await response.json();
+            setTryOnStatus('processing');
+
+            // Poll for result
+            const jobId = data.jobId;
+            let attempts = 0;
+            const maxAttempts = 60;
+
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                try {
+                    const statusRes = await fetch(`/api/try-on/${jobId}`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === 'DONE') {
+                        clearInterval(pollInterval);
+                        setTryOnStatus('done');
+                        setTryOnResultUrl(statusData.resultPhotoUrl || statusData.resultPath);
+                    } else if (statusData.status === 'FAILED') {
+                        clearInterval(pollInterval);
+                        setTryOnStatus('error');
+                        setTryOnError(statusData.errorMessage || 'Обробка не вдалася');
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        setTryOnStatus('error');
+                        setTryOnError('Час очікування вичерпано');
+                    }
+                } catch {
+                    clearInterval(pollInterval);
+                    setTryOnStatus('error');
+                    setTryOnError('Помилка перевірки статусу');
+                }
+            }, 2000);
+        } catch (err) {
+            setTryOnStatus('error');
+            setTryOnError(err instanceof Error ? err.message : 'Помилка завантаження');
         }
+    };
+
+    const resetTryOn = () => {
+        setUploadedPhoto(null);
+        setTryOnStatus('idle');
+        setTryOnResultUrl(null);
+        setTryOnError(null);
     };
 
     const similarProducts = mockProducts
@@ -147,18 +216,39 @@ export default function ProductPage() {
                                             <div className="result-image">
                                                 <p>Ваше фото</p>
                                                 <div className="img-placeholder">
-                                                    <span>📷</span>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={uploadedPhoto} alt="Ваше фото" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                                 </div>
                                             </div>
                                             <div className="result-arrow">→</div>
                                             <div className="result-image">
-                                                <p>Результат (обробляється...)</p>
-                                                <div className="img-placeholder">
-                                                    <div className="spinner"></div>
-                                                </div>
+                                                {tryOnStatus === 'done' && tryOnResultUrl ? (
+                                                    <>
+                                                        <p>Результат</p>
+                                                        <div className="img-placeholder">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={tryOnResultUrl} alt="Результат" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                                        </div>
+                                                    </>
+                                                ) : tryOnStatus === 'error' ? (
+                                                    <>
+                                                        <p>Помилка</p>
+                                                        <div className="img-placeholder">
+                                                            <span>❌</span>
+                                                            <p style={{ fontSize: '0.85rem', color: '#e74c3c' }}>{tryOnError}</p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p>{tryOnStatus === 'uploading' ? 'Завантаження...' : 'Обробляється...'}</p>
+                                                        <div className="img-placeholder">
+                                                            <div className="spinner"></div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
-                                        <button className="btn btn-secondary" onClick={() => setUploadedPhoto(null)}>
+                                        <button className="btn btn-secondary" onClick={resetTryOn}>
                                             Завантажити інше фото
                                         </button>
                                     </div>
