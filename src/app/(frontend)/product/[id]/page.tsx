@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/frontend/lib/cartContext';
 import { getProductById, mockProducts } from '@/frontend/lib/mockData';
+import { getCategoryName, getSeasonName } from '@/shared/formatters';
 import ProductCard from '@/frontend/components/ProductCard';
 import './page.css';
 
@@ -17,9 +18,11 @@ export default function ProductPage() {
     const [selectedColor, setSelectedColor] = useState('');
     const [showTryOn, setShowTryOn] = useState(false);
     const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+    const tryOnRef = useRef<HTMLDivElement>(null);
     const [tryOnStatus, setTryOnStatus] = useState<'idle' | 'uploading' | 'processing' | 'done' | 'error'>('idle');
     const [tryOnResultUrl, setTryOnResultUrl] = useState<string | null>(null);
     const [tryOnError, setTryOnError] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     if (!product) {
         return (
@@ -32,11 +35,13 @@ export default function ProductPage() {
 
     const handleAddToCart = () => {
         if (!selectedSize || !selectedColor) {
-            alert('Будь ласка, оберіть розмір та колір');
+            setNotification({ type: 'error', message: 'Будь ласка, оберіть розмір та колір' });
+            setTimeout(() => setNotification(null), 3000);
             return;
         }
         addToCart(product, selectedSize, selectedColor);
-        alert('Товар додано до кошика!');
+        setNotification({ type: 'success', message: 'Товар додано до кошика!' });
+        setTimeout(() => setNotification(null), 3000);
     };
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,6 +186,12 @@ export default function ProductPage() {
                             </div>
                         </div>
 
+                        {notification && (
+                            <div className={`notification ${notification.type}`}>
+                                {notification.message}
+                            </div>
+                        )}
+
                         <div className="product-actions">
                             <button className="btn btn-primary btn-lg" onClick={handleAddToCart}>
                                 Додати до кошика
@@ -191,7 +202,7 @@ export default function ProductPage() {
                         </div>
 
                         {showTryOn && (
-                            <div className="try-on-section">
+                            <div className="try-on-section" ref={tryOnRef}>
                                 <h3>Віртуальне примірювання</h3>
                                 <p>Завантажте своє фото, щоб побачити, як на вас виглядатиме ця річ</p>
 
@@ -285,24 +296,3 @@ export default function ProductPage() {
     );
 }
 
-function getCategoryName(category: string): string {
-    const names: Record<string, string> = {
-        jackets: 'Куртки',
-        pants: 'Штани',
-        shirts: 'Сорочки',
-        shoes: 'Взуття',
-        accessories: 'Аксесуари',
-    };
-    return names[category] || category;
-}
-
-function getSeasonName(season: string): string {
-    const names: Record<string, string> = {
-        spring: 'Весна',
-        summer: 'Літо',
-        fall: 'Осінь',
-        winter: 'Зима',
-        'all-season': 'Всесезонний',
-    };
-    return names[season] || season;
-}

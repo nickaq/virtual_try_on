@@ -3,6 +3,9 @@ import path from 'path';
 import { prisma } from '@/backend/lib/prisma';
 import { uploadFile } from '@/backend/lib/fileStorage';
 import { rateLimit } from '@/backend/lib/rateLimit';
+import { handleApiError } from '@/backend/lib/errorHandler';
+import { validateImageFile } from '@/backend/lib/fileValidation';
+import { log } from '@/backend/lib/logger';
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
@@ -36,21 +39,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check file size (max 10MB)
-        if (photo.size > 10 * 1024 * 1024) {
-            return NextResponse.json(
-                { error: 'File too large (max 10MB)' },
-                { status: 400 }
-            );
-        }
-
-        // Check file type
-        if (!photo.type.startsWith('image/')) {
-            return NextResponse.json(
-                { error: 'Only images are allowed' },
-                { status: 400 }
-            );
-        }
+        // Centralized validation
+        validateImageFile(photo);
 
         // Upload user photo
         const userPhotoPath = await uploadFile(photo, 'try-on/user-photos');
@@ -107,7 +97,7 @@ export async function POST(request: NextRequest) {
 
         // Call AI service asynchronously
         processJobAsync(job.id, absoluteUserPath, absoluteProductPath).catch(err => {
-            console.error('Try-on processing error:', err);
+            log.error('Try-on processing error', err);
         });
 
         return NextResponse.json({
@@ -117,11 +107,7 @@ export async function POST(request: NextRequest) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error('Try-on upload error:', error);
-        return NextResponse.json(
-            { error: 'Upload failed' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'POST /api/try-on/upload');
     }
 }
 
@@ -176,7 +162,7 @@ async function processJobAsync(
             },
         });
     } catch (error) {
-        console.error('AI processing error:', error);
+        log.error('AI processing error', error, { jobId });
 
         // Update job as failed
         await prisma.tryOnJob.update({

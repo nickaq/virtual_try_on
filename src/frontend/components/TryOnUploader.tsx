@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
+import './TryOnUploader.css';
 
 interface TryOnUploaderProps {
     onImageSelect: (file: File | null) => void;
@@ -62,8 +63,8 @@ export default function TryOnUploader({
     }, []);
 
     return (
-        <div className="w-full">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="uploader-wrapper">
+            <label className="uploader-label">
                 {label}
             </label>
 
@@ -71,18 +72,11 @@ export default function TryOnUploader({
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`
-          relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-          transition-colors duration-200
-          ${isDragging
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400 bg-white'
-                    }
-        `}
+                className={`uploader-dropzone ${isDragging ? 'dragging' : ''}`}
             >
                 {preview ? (
-                    <div className="space-y-4">
-                        <div className="relative w-full h-64 rounded-lg overflow-hidden">
+                    <div className="uploader-preview">
+                        <div className="uploader-preview-image">
                             <Image
                                 src={preview}
                                 alt="Preview"
@@ -95,16 +89,17 @@ export default function TryOnUploader({
                                 setPreview(null);
                                 onImageSelect(null as File | null);
                             }}
-                            className="text-sm text-red-600 hover:text-red-700"
+                            className="uploader-remove-btn"
                         >
                             Remove Image
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        <div className="flex justify-center">
+                    <div className="uploader-placeholder">
+                        <div className="uploader-icon">
                             <svg
-                                className="w-12 h-12 text-gray-400"
+                                width="48"
+                                height="48"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -117,13 +112,11 @@ export default function TryOnUploader({
                                 />
                             </svg>
                         </div>
-                        <div className="text-sm text-gray-600">
-                            <label htmlFor={`file-upload-${label}`} className="cursor-pointer">
-                                <span className="text-blue-600 hover:text-blue-700 font-medium">
-                                    Click to upload
-                                </span>
-                                <span> or drag and drop</span>
+                        <div className="uploader-text">
+                            <label htmlFor={`file-upload-${label}`} className="uploader-text-link">
+                                Click to upload
                             </label>
+                            <span> or drag and drop</span>
                             <input
                                 id={`file-upload-${label}`}
                                 type="file"
@@ -133,9 +126,10 @@ export default function TryOnUploader({
                                     if (file) handleFileChange(file);
                                 }}
                                 className="hidden"
+                                style={{ display: 'none' }}
                             />
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="uploader-hint">
                             PNG, JPG up to 10MB
                         </p>
                     </div>

@@ -125,11 +125,9 @@ async function main() {
     await prisma.product.deleteMany();
 
     // Додати products
-    for (const product of products) {
-        await prisma.product.create({
-            data: product,
-        });
-    }
+    await prisma.product.createMany({
+        data: products,
+    });
 
     console.log(`✓ Створено ${products.length} товарів`);
 }

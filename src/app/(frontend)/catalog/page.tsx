@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import ProductCard from '@/frontend/components/ProductCard';
 import { filterProducts } from '@/frontend/lib/mockData';
+import { getCategoryName, getSeasonName } from '@/shared/formatters';
 import './page.css';
 
 export default function CatalogPage() {
@@ -142,24 +143,3 @@ export default function CatalogPage() {
     );
 }
 
-function getCategoryName(category: string): string {
-    const names: Record<string, string> = {
-        jackets: 'Куртки',
-        pants: 'Штани',
-        shirts: 'Сорочки',
-        shoes: 'Взуття',
-        accessories: 'Аксесуари',
-    };
-    return names[category] || category;
-}
-
-function getSeasonName(season: string): string {
-    const names: Record<string, string> = {
-        spring: 'Весна',
-        summer: 'Літо',
-        fall: 'Осінь',
-        winter: 'Зима',
-        'all-season': 'Всесезонний',
-    };
-    return names[season] || season;
-}

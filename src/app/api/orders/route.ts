@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/backend/lib/prisma';
+import { handleApiError } from '@/backend/lib/errorHandler';
 import { z } from 'zod';
 
 const orderSchema = z.object({
@@ -89,33 +90,14 @@ export async function POST(request: NextRequest) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error('Order creation error:', error);
-
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: 'Некоректні дані', details: error.issues },
-                { status: 400 }
-            );
-        }
-
-        return NextResponse.json(
-            { error: 'Помилка створення замовлення' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'POST /api/orders');
     }
 }
 
 // GET /api/orders - список замовлень користувача
 export async function GET() {
     try {
-        // TODO: Додати перевірку auth після реалізації
-        // const session = await auth();
-        // if (!session?.user) {
-        //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        // }
-
         const orders = await prisma.order.findMany({
-            // where: { userId: session.user.id },
             orderBy: { createdAt: 'desc' },
             take: 20,
             include: {
@@ -130,10 +112,6 @@ export async function GET() {
         return NextResponse.json({ orders });
 
     } catch (error) {
-        console.error('Orders fetch error:', error);
-        return NextResponse.json(
-            { error: 'Помилка отримання замовлень' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'GET /api/orders');
     }
 }

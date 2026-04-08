@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Product } from '@/shared/types';
+import { getCategoryName } from '@/shared/formatters';
 import './ProductCard.css';
 
 interface ProductCardProps {
@@ -35,7 +36,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
                 {/* Try On Button */}
                 <Link
-                    href={`/tryon?product=${product.id}`}
+                    href={`/product/${product.id}#try-on`}
                     className="try-on-button"
                     onClick={(e) => e.stopPropagation()}
                 >
@@ -50,13 +51,3 @@ export default function ProductCard({ product }: ProductCardProps) {
     );
 }
 
-function getCategoryName(category: string): string {
-    const names: Record<string, string> = {
-        jackets: 'Куртки',
-        pants: 'Штани',
-        shirts: 'Сорочки',
-        shoes: 'Взуття',
-        accessories: 'Аксесуари',
-    };
-    return names[category] || category;
-}

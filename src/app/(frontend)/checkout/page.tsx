@@ -9,6 +9,8 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { items, getTotal, clearCart } = useCart();
     const [step, setStep] = useState(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [orderError, setOrderError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -29,15 +31,49 @@ export default function CheckoutPage() {
         return null;
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (step < 3) {
             setStep(step + 1);
-        } else {
-            // Simulate order placement
-            alert('Замовлення успішно оформлено! Дякуємо за покупку.');
+            return;
+        }
+
+        // Submit order via API
+        setIsSubmitting(true);
+        setOrderError(null);
+
+        try {
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: items.map(item => ({
+                        productId: item.product.id,
+                        quantity: item.quantity,
+                        selectedSize: item.selectedSize,
+                        selectedColor: item.selectedColor,
+                    })),
+                    contactName: formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: formData.address,
+                    city: formData.city,
+                    postalCode: formData.postalCode,
+                    country: formData.country,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Помилка оформлення (${response.status})`);
+            }
+
             clearCart();
             router.push('/');
+        } catch (err) {
+            setOrderError(err instanceof Error ? err.message : 'Помилка оформлення замовлення');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -64,6 +100,12 @@ export default function CheckoutPage() {
                         <span>Підтвердження</span>
                     </div>
                 </div>
+
+                {orderError && (
+                    <div className="checkout-error">
+                        <p>{orderError}</p>
+                    </div>
+                )}
 
                 <div className="checkout-layout">
                     <form className="checkout-form" onSubmit={handleSubmit}>
@@ -177,8 +219,8 @@ export default function CheckoutPage() {
                                     <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>
                                         Назад
                                     </button>
-                                    <button type="submit" className="btn btn-primary btn-lg">
-                                        Підтвердити замовлення
+                                    <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting}>
+                                        {isSubmitting ? 'Обробка...' : 'Підтвердити замовлення'}
                                     </button>
                                 </div>
                             </div>

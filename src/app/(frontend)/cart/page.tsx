@@ -1,6 +1,5 @@
 'use client';
 
-
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/frontend/lib/cartContext';
 import Link from 'next/link';

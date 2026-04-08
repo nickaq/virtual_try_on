@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/backend/lib/prisma';
+import { handleApiError } from '@/backend/lib/errorHandler';
 
 // GET /api/try-on/:jobId - статус примірювання
 export async function GET(
@@ -28,8 +29,6 @@ export async function GET(
             );
         }
 
-        // TODO: Перевірити, що користувач має доступ до цього job
-
         return NextResponse.json({
             id: job.id,
             status: job.status,
@@ -42,10 +41,6 @@ export async function GET(
         });
 
     } catch (error) {
-        console.error('Try-on job status error:', error);
-        return NextResponse.json(
-            { error: 'Помилка отримання статусу' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'GET /api/try-on/:jobId');
     }
 }

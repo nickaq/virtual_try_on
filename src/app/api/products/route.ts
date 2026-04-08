@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/backend/lib/prisma';
+import { handleApiError } from '@/backend/lib/errorHandler';
 
 // GET /api/products - список товарів з фільтрацією та пагінацією
 export async function GET(request: NextRequest) {
@@ -75,10 +76,6 @@ export async function GET(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Products API error:', error);
-        return NextResponse.json(
-            { error: 'Помилка отримання товарів' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'GET /api/products');
     }
 }
